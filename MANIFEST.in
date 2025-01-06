@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include aisensy *.css
+recursive-include aisensy *.csv
+recursive-include aisensy *.html
+recursive-include aisensy *.ico
+recursive-include aisensy *.js
+recursive-include aisensy *.json
+recursive-include aisensy *.md
+recursive-include aisensy *.png
+recursive-include aisensy *.py
+recursive-include aisensy *.svg
+recursive-include aisensy *.txt
+recursive-exclude aisensy *.pyc
