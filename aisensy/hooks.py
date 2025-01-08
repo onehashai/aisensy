@@ -9,10 +9,9 @@ app_license = "MIT"
 
 # Includes in <head>
 # ------------------
-app_include_js = ["/assets/aisensy/js/contact.js","/assets/aisensy/js/lead.js","/assets/aisensy/js/customer.js"]
 # include js, css files in header of desk.html
 # app_include_css = "/assets/aisensy/css/aisensy.css"
-# app_include_js = "/assets/aisensy/js/aisensy.js"
+app_include_js = ["/assets/aisensy/js/contact.js","/assets/aisensy/js/lead.js","/assets/aisensy/js/customer.js"]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/aisensy/css/aisensy.css"
