@@ -62,7 +62,7 @@ class AisensyNotification(Notification):
 
 
     def send_whatsapp_msg(self, doc, context):
-        aisensy_campaign = self.whatsapp_template
+        aisensy_campaign = self.aisensy_whatsapp_template
 
 
         if not aisensy_campaign:
@@ -142,7 +142,7 @@ class AisensyNotification(Notification):
         template_params_list = []
 
 
-        parameters = sorted(self.whatsapp_parameter, key=lambda x: x.parameter)
+        parameters = sorted(self.aisensy_whatsapp_parameter, key=lambda x: x.parameter)
 
 
         for param in parameters:

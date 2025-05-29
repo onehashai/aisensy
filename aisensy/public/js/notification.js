@@ -1,6 +1,6 @@
 frappe.ui.form.on('Notification', {
-   map_fields: function(frm) {
-       if (!frm.doc.document_type || !frm.doc.whatsapp_template) {
+   aisensy_map_fields: function(frm) {
+       if (!frm.doc.document_type || !frm.doc.aisensy_whatsapp_template) {
            frappe.msgprint('Please select both Document Type and WhatsApp Template.');
            return;
        }
@@ -10,7 +10,7 @@ frappe.ui.form.on('Notification', {
            method: "frappe.client.get_list",
            args: {
                doctype: "Aisensy Campaign",
-               filters: { campaign_name: frm.doc.whatsapp_template },
+               filters: { campaign_name: frm.doc.aisensy_whatsapp_template },
                fields: ["name", "no_of_template_params", "template_type", "template_format"],
                limit_page_length: 1
            },
@@ -67,14 +67,14 @@ frappe.ui.form.on('Notification', {
                                let field_label = selected_field ? selected_field.label : selected_label;
 
 
-                               frm.add_child("whatsapp_parameter", {
+                               frm.add_child("aisensy_whatsapp_parameter", {
                                    parameter: i,
                                    value: `${field_label}|${fieldname}`,
                                    field_value: fieldname,             
                                    type: campaign.template_type
                                });
                            }
-                           frm.refresh_field("whatsapp_parameter");
+                           frm.refresh_field("aisensy_whatsapp_parameter");
                            d.hide();
                            frappe.msgprint("Parameters mapped successfully!");
                        }

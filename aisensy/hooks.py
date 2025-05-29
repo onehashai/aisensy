@@ -67,13 +67,13 @@ doctype_js = {
 # ------------
 
 # before_install = "aisensy.install.before_install"
-# after_install = "aisensy.install.after_install"
+after_install = "aisensy.install.after_install"
 
 # Uninstallation
 # ------------
 
 # before_uninstall = "aisensy.uninstall.before_uninstall"
-# after_uninstall = "aisensy.uninstall.after_uninstall"
+after_uninstall = "aisensy.uninstall.after_uninstall"
 
 # Integration Setup
 # ------------------
