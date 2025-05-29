@@ -9,7 +9,8 @@
  "engine": "InnoDB",
  "field_order": [
   "enabled_name",
-  "authentication_token"
+  "authentication_token",
+  "username"
  ],
  "fields": [
   {
@@ -24,15 +25,19 @@
    "in_list_view": 1,
    "label": "Authentication Token",
    "reqd": 1
+  },
+  {
+   "fieldname": "username",
+   "fieldtype": "Data",
+   "label": "Username"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-09-25 18:19:03.609626",
+ "modified": "2025-05-29 10:23:25.787954",
  "modified_by": "Administrator",
  "module": "Aisensy",
  "name": "Aisensy Settings",
- "name_case": "Title Case",
  "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
@@ -57,6 +62,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

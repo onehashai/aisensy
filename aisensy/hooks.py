@@ -29,6 +29,10 @@ app_include_js = ["/assets/aisensy/js/contact.js","/assets/aisensy/js/lead.js","
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+   "Notification" : "public/js/Notification.js",
+}
+
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -112,6 +116,11 @@ app_include_js = ["/assets/aisensy/js/contact.js","/assets/aisensy/js/lead.js","
 # override_doctype_class = {
 #	"ToDo": "custom_app.overrides.CustomToDo"
 # }
+
+override_doctype_class = {
+   "Notification": "aisensy.aisensy.custom_notification.AisensyNotification"
+}
+
 
 # Document Events
 # ---------------
