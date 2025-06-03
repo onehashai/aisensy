@@ -121,9 +121,14 @@ after_uninstall = "aisensy.uninstall.after_uninstall"
 # 	"ToDo": "custom_app.overrides.CustomToDo"
 # }
 
-override_doctype_class = {
-    "Notification": "aisensy.overrides.notification.AisensyNotification"
-}
+# override_doctype_class = {
+#     "Notification": "aisensy.overrides.notification.AisensyNotification"
+# }
+
+# WhatsApp Notification
+# ---------------
+whatsapp_notification_validate = ["aisensy.overrides.notification.aisensy_validate"]
+whatsapp_notification_send = ["aisensy.overrides.notification.aisensy_send"]
 
 
 # Document Events
