@@ -23,6 +23,7 @@ def aisensy_validate(notification_doc):
 
 def aisensy_send(notification_doc, doc):
     context = get_context(doc)
+    campaign = notification_doc.aisensy_whatsapp_template
     context = {"doc": doc, "alert": notification_doc, "comments": None}
     if doc.get("_comments"):
         context["comments"] = json.loads(doc.get("_comments"))
@@ -35,7 +36,12 @@ def aisensy_send(notification_doc, doc):
             notification_doc.channel == "WhatsApp"
             and notification_doc.custom_whatsapp_app == APP_TITLE
         ):
-            aisensy_send_whatsapp_msg(notification_doc, doc, context)
+            aisensy_send_message(
+                notification_doc,
+                doc,
+                notification_doc.get_receiver_list(doc, context),
+                campaign,
+            )
     except Exception as e:
         frappe.log_error(
             title="Failed to send Aisensy notification",
@@ -43,55 +49,7 @@ def aisensy_send(notification_doc, doc):
         )
 
 
-def aisensy_send_whatsapp_msg(notification_doc, doc, context):
-    aisensy_campaign = notification_doc.aisensy_whatsapp_template
-
-    if not aisensy_campaign:
-        frappe.msgprint(_("Please select an Aisensy Campaign"))
-        return
-
-    campaign = frappe.get_doc("Aisensy Campaign", aisensy_campaign)
-    template_parameters = frappe.render_template(notification_doc.message, context)
-
-    try:
-        params = json.loads(template_parameters) if template_parameters else {}
-    except json.JSONDecodeError:
-        frappe.throw(_("Invalid JSON format in message parameters"))
-
-    # Handle print format attachments
-    for k, v in params.items():
-        if (
-            v
-            and str(v).strip().lower() in ["print_format", "print format"]
-            and notification_doc.attach_print
-            and notification_doc.print_format
-        ):
-            url = (
-                utils.get_url()
-                + "/"
-                + doc.doctype
-                + "/"
-                + doc.name
-                + "?format="
-                + notification_doc.print_format
-                + "&key="
-                + doc.get_signature()
-            )
-            params[k] = url
-
-    # Send message using Aisensy
-    aisensy_send_message(
-        notification_doc,
-        doc=doc,
-        whatsapp_numbers=notification_doc.get_receiver_list(doc, context),
-        campaign=campaign,
-        template_parameters=params,
-    )
-
-
-def aisensy_send_message(
-    notification_doc, doc, whatsapp_numbers, campaign, template_parameters
-):
+def aisensy_send_message(notification_doc, doc, whatsapp_numbers, campaign):
     """Send WhatsApp message through Aisensy API"""
     try:
         # Get active Aisensy settings
@@ -109,7 +67,6 @@ def aisensy_send_message(
             doc,
             api_key,
             campaign,
-            template_parameters,
             whatsapp_numbers,
         )
 
@@ -118,7 +75,7 @@ def aisensy_send_message(
 
         # Log the message
         aisensy_log_message(
-            campaign.campaign_name,
+            campaign,
             whatsapp_numbers,
             doc.doctype + "/" + doc.name,
             response,
@@ -130,7 +87,7 @@ def aisensy_send_message(
 
 
 def aisensy_prepare_message_data(
-    notification_doc, doc, api_key, campaign, template_parameters, whatsapp_numbers
+    notification_doc, doc, api_key, campaign, whatsapp_numbers
 ):
     """Prepare message data for Aisensy API matching the curl format"""
 
@@ -163,7 +120,7 @@ def aisensy_prepare_message_data(
     # Base message data structure matching the curl example
     message_data = {
         "apiKey": api_key,
-        "campaignName": campaign.campaign_name,
+        "campaignName": campaign,
         "destination": destination,
         "userName": user_name,
         "templateParams": template_params_list,
@@ -175,10 +132,6 @@ def aisensy_prepare_message_data(
         "attributes": {},
     }
     frappe.log_error("Message Data: ", message_data)
-
-    # Add paramsFallbackValue if template parameters exist
-    if template_parameters:
-        message_data["paramsFallbackValue"] = template_parameters
 
     # Handle media based on campaign template type
     if hasattr(campaign, "template_type") and campaign.template_type:
