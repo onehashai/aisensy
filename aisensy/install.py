@@ -10,6 +10,20 @@ def after_install():
 
 
 def add_app_to_whatsapp_apps():
-    if not frappe.db.exists("WhatsApp App", APP_TITLE):
-        frappe.get_doc({"doctype": "WhatsApp App", "app_name": APP_TITLE}).insert()
-        frappe.db.commit()
+    try:
+        field = frappe.db.get_list(
+            "Custom Field",
+            ["*"],
+            {"dt": "Notification", "fieldname": "custom_whatsapp_app"},
+        )[0]
+
+        options = field.get("options", "").split("\n")
+
+        if APP_TITLE not in options:
+            options.append(APP_TITLE)
+            frappe.db.set_value(
+                "Custom Field", field.name, "options", "\n".join(options)
+            )
+            frappe.db.commit()
+    except IndexError:
+        raise Exception("Notification field custom_whatsapp_app not present.")
