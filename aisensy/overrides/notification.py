@@ -111,8 +111,6 @@ def aisensy_prepare_message_data(
         fieldvalue = param.field_value
         template_params_list.append(doc.get(fieldvalue))
 
-    frappe.log_error("Template Parameters List: ", template_params_list)
-
     enabled_settings = aisensy_get_enabled_settings()
     get_username = frappe.get_doc("Aisensy Settings", enabled_settings[0].name)
     user_name = get_username.username
@@ -124,14 +122,13 @@ def aisensy_prepare_message_data(
         "destination": destination,
         "userName": user_name,
         "templateParams": template_params_list,
-        "source": "frappe-notification",
+        "source": "OneHash-notification",
         "media": {},
         "buttons": [],
         "carouselCards": [],
         "location": {},
         "attributes": {},
     }
-    frappe.log_error("Message Data: ", message_data)
 
     # Handle media based on campaign template type
     if hasattr(campaign, "template_type") and campaign.template_type:
@@ -201,7 +198,6 @@ def aisensy_prepare_message_data(
             full_url = utils.get_url(public_url)
 
             message_data["media"] = {"url": full_url, "filename": filename}
-            frappe.log_error("PDF attached to WhatsApp message", full_url)
         except Exception as e:
             frappe.log_error("Failed to attach print PDF", str(e))
     return message_data
