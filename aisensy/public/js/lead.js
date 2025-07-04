@@ -8,7 +8,7 @@ frappe.ui.form.on("Lead", {
         whatsapp_dialog(frm);
       },
       __(
-        '<img src="https://aisensy.wpenginepowered.com/wp-content/uploads/2021/02/Untitled.png" height="35px" width="60px">'
+        '<img src="https://static-files.umso.co/lib_EyxlwrMuBuWXHRhZ/26dhd89h26xnezx5.png" height="35px" width="60px">'
       )
     );
 
@@ -18,7 +18,7 @@ frappe.ui.form.on("Lead", {
         frappe.set_route("List", "Aisensy Message Logs", {});
       },
       __(
-        '<img src="https://aisensy.wpenginepowered.com/wp-content/uploads/2021/02/Untitled.png" height="35px" width="60px">'
+        '<img src="https://static-files.umso.co/lib_EyxlwrMuBuWXHRhZ/26dhd89h26xnezx5.png" height="35px" width="60px">'
       )
     );
   },
