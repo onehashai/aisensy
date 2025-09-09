@@ -66,6 +66,24 @@ def add_custom_fields_to_notification():
             "name": "Notification-aisensy_whatsapp_parameter",
             "options": "WhatsApp Parameter",
         },
+        {
+            "dt": "Notification",
+            "fieldname": "trigger_for_bill_to_contact",
+            "fieldtype": "Check",
+            "label": "Trigger for Bill To Contact",
+            "module": "Aisensy",
+            "name": "Notification-trigger_for_bill_to_contact",
+            "insert_after": "module",
+        },
+        {
+            "dt": "Notification",
+            "fieldname": "trigger_for_standard_contact",
+            "fieldtype": "Check",
+            "label": "Trigger for Standard Contact",
+            "module": "Aisensy",
+            "name": "Notification-trigger_for_standard_contact",
+            "insert_after": "trigger_for_bill_to_contact",
+        },
     ]
 
     for field in custom_fields:
