@@ -1,5 +1,6 @@
 import frappe
 import json
+import re
 from aisensy.app_config import APP_TITLE
 from frappe.email.doctype.notification.notification import get_context
 from frappe import utils, _
@@ -18,7 +19,6 @@ def aisensy_validate(notification_doc):
                     "Please enable at least one Aisensy setting to send WhatsApp messages"
                 )
             )
-
 
 def aisensy_send(notification_doc, doc):
     context = get_context(doc)
@@ -140,8 +140,6 @@ def clean_phone_number(phone):
     if not phone:
         return None
     
-    import re
-    
     phone_str = str(phone).strip()
     
     cleaned = re.sub(r'[\s\-\.\(\)\[\]]+', '', phone_str)
@@ -217,6 +215,15 @@ def aisensy_send_message(notification_doc, doc, whatsapp_numbers, campaign):
         )
 
         response = aisensy_make_api_call(message_data)
+
+        if response.get("error"):
+            frappe.throw(_("Aisensy API Error: {0}").format(response.get("error")))
+        else:
+            frappe.msgprint(
+                _("WhatsApp message sent successfully via Aisensy."),
+                title=_("WhatsApp Notification Sent"),
+                indicator="green"
+            )
 
         aisensy_log_message(
             campaign,
@@ -360,9 +367,7 @@ def aisensy_prepare_message_data(
 def sanitize_param_text(text):
     if not text:
         return ""
-    # Remove new-line and tab characters
     text = re.sub(r'[\n\t]', ' ', str(text))
-    # Collapse more than 4 spaces to a single space
     text = re.sub(r' {5,}', ' ', text)
     return text.strip()
 
