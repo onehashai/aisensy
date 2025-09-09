@@ -257,11 +257,11 @@ def aisensy_prepare_message_data(
         if field_data is None:
             template_params_list.append("")  # Convert None to empty string
         elif isinstance(field_data, (int, float)):
-            template_params_list.append(str(field_data))
+            template_params_list.append(sanitize_param_text(field_data))
         elif isinstance(field_data, (list, dict)):
             template_params_list.append(json.dumps(field_data))
         else:
-            template_params_list.append(str(field_data))
+            template_params_list.append(sanitize_param_text(field_data))
 
     enabled_settings = aisensy_get_enabled_settings()
     get_username = frappe.get_doc("Aisensy Settings", enabled_settings[0].name)
@@ -356,6 +356,16 @@ def aisensy_prepare_message_data(
             frappe.log_error(title="Failed to attach print PDF", message=str(e))
     
     return message_data
+
+def sanitize_param_text(text):
+    if not text:
+        return ""
+    # Remove new-line and tab characters
+    text = re.sub(r'[\n\t]', ' ', str(text))
+    # Collapse more than 4 spaces to a single space
+    text = re.sub(r' {5,}', ' ', text)
+    return text.strip()
+
 
 def aisensy_make_api_call(message_data):
     """Make API call to Aisensy"""
