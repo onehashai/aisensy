@@ -1,5 +1,6 @@
 import frappe
 import json
+import re
 from aisensy.app_config import APP_TITLE
 from frappe.email.doctype.notification.notification import get_context
 from frappe import utils, _
@@ -11,7 +12,6 @@ def aisensy_validate(notification_doc):
         and notification_doc.channel == "WhatsApp"
         and notification_doc.custom_whatsapp_app == APP_TITLE
     ):
-        # Get enabled Aisensy settings
         enabled_settings = aisensy_get_enabled_settings()
         if not enabled_settings:
             frappe.throw(
@@ -19,7 +19,6 @@ def aisensy_validate(notification_doc):
                     "Please enable at least one Aisensy setting to send WhatsApp messages"
                 )
             )
-
 
 def aisensy_send(notification_doc, doc):
     context = get_context(doc)
@@ -36,10 +35,12 @@ def aisensy_send(notification_doc, doc):
             notification_doc.channel == "WhatsApp"
             and notification_doc.custom_whatsapp_app == APP_TITLE
         ):
+            whatsapp_numbers = get_whatsapp_numbers_based_on_trigger(notification_doc, doc, context)
+            
             aisensy_send_message(
                 notification_doc,
                 doc,
-                notification_doc.get_receiver_list(doc, context),
+                whatsapp_numbers,
                 campaign,
             )
     except Exception as e:
@@ -49,10 +50,154 @@ def aisensy_send(notification_doc, doc):
         )
 
 
+def get_whatsapp_numbers_based_on_trigger(notification_doc, doc, context):
+    """Get WhatsApp numbers based on trigger conditions"""
+    try:
+        trigger_for_bill_to_contact = getattr(notification_doc, 'trigger_for_bill_to_contact', 0)
+        trigger_for_standard_contact = getattr(notification_doc, 'trigger_for_standard_contact', 0)
+        
+        whatsapp_numbers = []
+        
+        if trigger_for_bill_to_contact:
+            bill_to_numbers = get_phone_from_customer_address(doc, 'customer_address')
+            if bill_to_numbers:
+                whatsapp_numbers.extend(bill_to_numbers)
+        
+        if trigger_for_standard_contact:
+            standard_numbers = get_phone_from_customer_address(doc, 'customer_address')
+            if standard_numbers:
+                whatsapp_numbers.extend(standard_numbers)
+        
+        if not whatsapp_numbers or (not trigger_for_bill_to_contact and not trigger_for_standard_contact):
+            whatsapp_numbers = notification_doc.get_receiver_list(doc, context)
+        
+        unique_numbers = []
+        seen = set()
+        for num in whatsapp_numbers:
+            if num not in seen:
+                unique_numbers.append(num)
+                seen.add(num)
+        
+        return unique_numbers
+        
+    except Exception as e:
+        frappe.log_error(
+            title="Error getting WhatsApp numbers based on trigger",
+            message=f"Document: {doc.doctype}/{doc.name}, Error: {str(e)}"
+        )
+        return notification_doc.get_receiver_list(doc, context)
+
+
+def get_phone_from_customer_address(doc, address_field):
+    """Get phone numbers from customer address"""
+    phone_numbers = []
+    
+    try:
+        address_name = doc.get(address_field)
+        
+        if not address_name:
+            frappe.log_error(
+                title="Address field not found",
+                message=f"Field '{address_field}' not found in document {doc.doctype}/{doc.name}"
+            )
+            return phone_numbers
+        
+        address_doc = frappe.get_doc("Address", address_name)
+        
+        phone_fields = ['phone', 'mobile_no', 'fax']
+        
+        for field in phone_fields:
+            phone_value = address_doc.get(field)
+            if phone_value:
+                cleaned_phone = clean_phone_number(phone_value)
+                if cleaned_phone:
+                    phone_numbers.append(cleaned_phone)
+        
+        if phone_numbers:
+            frappe.logger().info(f"Found phone numbers from {address_field}: {phone_numbers}")
+        else:
+            frappe.log_error(
+                title="No phone numbers found in address",
+                message=f"Address: {address_name}, Document: {doc.doctype}/{doc.name}"
+            )
+            
+    except frappe.DoesNotExistError:
+        frappe.log_error(
+            title="Address not found",
+            message=f"Address '{address_name}' not found for document {doc.doctype}/{doc.name}"
+        )
+    except Exception as e:
+        frappe.log_error(
+            title="Error fetching phone from address",
+            message=f"Address: {address_name}, Document: {doc.doctype}/{doc.name}, Error: {str(e)}"
+        )
+    
+    return phone_numbers
+
+
+def clean_phone_number(phone):
+    """Clean and validate phone number - handles space-separated formats"""
+    if not phone:
+        return None
+    
+    phone_str = str(phone).strip()
+    
+    cleaned = re.sub(r'[\s\-\.\(\)\[\]]+', '', phone_str)
+    cleaned = re.sub(r'[^\d+]', '', cleaned)
+    digits_only = re.sub(r'[^\d]', '', cleaned)
+    
+    if len(digits_only) < 10:
+        return None
+    
+    if cleaned.startswith('+'):
+        if len(digits_only) >= 10:
+            return cleaned
+        else:
+            return None
+    else:
+        if len(digits_only) == 10:
+            cleaned = '+91' + digits_only
+        elif len(digits_only) == 11:
+            if digits_only.startswith('0'):
+                cleaned = '+91' + digits_only[1:]
+            else:
+                cleaned = '+91' + digits_only
+        elif len(digits_only) == 12:
+            if digits_only.startswith('91'):
+                cleaned = '+' + digits_only
+            else:
+                cleaned = '+91' + digits_only
+        elif len(digits_only) == 13:
+            if digits_only.startswith('91'):
+                cleaned = '+' + digits_only[:12]
+            else:
+                cleaned = '+91' + digits_only[:10]
+        else:
+            if len(digits_only) > 13:
+                cleaned = '+91' + digits_only[:10]
+            else:
+                cleaned = '+91' + digits_only
+    
+    final_digits = re.sub(r'[^\d]', '', cleaned)
+    if len(final_digits) < 12:
+        return None
+    
+    return cleaned
+
+
 def aisensy_send_message(notification_doc, doc, whatsapp_numbers, campaign):
     """Send WhatsApp message through Aisensy API"""
     try:
-        # Get active Aisensy settings
+        if not whatsapp_numbers:
+            frappe.msgprint(
+                _(
+                    "Cannot trigger WhatsApp notification as no contact number is available."
+                ).format(doc.doctype, doc.name),
+                title=_("WhatsApp Notification Skipped"),
+                indicator="orange"
+            )
+            return
+        
         aisensy_settings = aisensy_get_active_setting()
         if not aisensy_settings:
             frappe.throw(_("No enabled Aisensy settings found"))
@@ -61,7 +206,6 @@ def aisensy_send_message(notification_doc, doc, whatsapp_numbers, campaign):
         if not api_key:
             frappe.throw(_("Aisensy API key not found in enabled settings"))
 
-        # Prepare message data
         message_data = aisensy_prepare_message_data(
             notification_doc,
             doc,
@@ -70,10 +214,17 @@ def aisensy_send_message(notification_doc, doc, whatsapp_numbers, campaign):
             whatsapp_numbers,
         )
 
-        # Make API call to Aisensy
         response = aisensy_make_api_call(message_data)
 
-        # Log the message
+        if response.get("error"):
+            frappe.throw(_("Aisensy API Error: {0}").format(response.get("error")))
+        else:
+            frappe.msgprint(
+                _("WhatsApp message sent successfully via Aisensy."),
+                title=_("WhatsApp Notification Sent"),
+                indicator="green"
+            )
+
         aisensy_log_message(
             campaign,
             whatsapp_numbers,
@@ -89,9 +240,8 @@ def aisensy_send_message(notification_doc, doc, whatsapp_numbers, campaign):
 def aisensy_prepare_message_data(
     notification_doc, doc, api_key, campaign, whatsapp_numbers
 ):
-    """Prepare message data for Aisensy API matching the curl format"""
+    """Prepare message data for Aisensy API"""
 
-    # Convert single number to string, multiple numbers to comma-separated string
     if isinstance(whatsapp_numbers, list):
         if len(whatsapp_numbers) == 1:
             destination = str(whatsapp_numbers[0])
@@ -100,7 +250,6 @@ def aisensy_prepare_message_data(
     else:
         destination = str(whatsapp_numbers)
 
-    # Prepare template parameters as a list of values
     template_params_list = []
 
     parameters = sorted(
@@ -109,13 +258,22 @@ def aisensy_prepare_message_data(
 
     for param in parameters:
         fieldvalue = param.field_value
-        template_params_list.append(doc.get(fieldvalue))
+        field_data = doc.get(fieldvalue)
+        
+        # Convert all template parameters to strings
+        if field_data is None:
+            template_params_list.append("")  # Convert None to empty string
+        elif isinstance(field_data, (int, float)):
+            template_params_list.append(sanitize_param_text(field_data))
+        elif isinstance(field_data, (list, dict)):
+            template_params_list.append(json.dumps(field_data))
+        else:
+            template_params_list.append(sanitize_param_text(field_data))
 
     enabled_settings = aisensy_get_enabled_settings()
     get_username = frappe.get_doc("Aisensy Settings", enabled_settings[0].name)
     user_name = get_username.username
 
-    # Base message data structure matching the curl example
     message_data = {
         "apiKey": api_key,
         "campaignName": campaign,
@@ -130,7 +288,6 @@ def aisensy_prepare_message_data(
         "attributes": {},
     }
 
-    # Handle media based on campaign template type
     if hasattr(campaign, "template_type") and campaign.template_type:
         if (
             campaign.template_type.upper() in ["IMAGE", "VIDEO", "FILE"]
@@ -141,7 +298,6 @@ def aisensy_prepare_message_data(
             if hasattr(campaign, "file_name") and campaign.file_name:
                 message_data["media"]["filename"] = campaign.file_name
 
-    # Handle buttons if campaign has button configuration
     if hasattr(campaign, "buttons") and campaign.buttons:
         try:
             if isinstance(campaign.buttons, str):
@@ -149,9 +305,11 @@ def aisensy_prepare_message_data(
             elif isinstance(campaign.buttons, list):
                 message_data["buttons"] = campaign.buttons
         except (json.JSONDecodeError, TypeError):
-            frappe.log_error("Invalid buttons format in campaign", campaign.buttons)
+            frappe.log_error(
+                title="Invalid buttons format in campaign",
+                message=f"Campaign: {campaign}, Buttons: {campaign.buttons}"
+            )
 
-    # Handle carousel cards if campaign has carousel configuration
     if hasattr(campaign, "carousel_cards") and campaign.carousel_cards:
         try:
             if isinstance(campaign.carousel_cards, str):
@@ -160,10 +318,10 @@ def aisensy_prepare_message_data(
                 message_data["carouselCards"] = campaign.carousel_cards
         except (json.JSONDecodeError, TypeError):
             frappe.log_error(
-                "Invalid carousel cards format in campaign", campaign.carousel_cards
+                title="Invalid carousel cards format in campaign",
+                message=f"Campaign: {campaign}, Carousel cards: {campaign.carousel_cards}"
             )
 
-    # Handle location if campaign has location data
     if hasattr(campaign, "location") and campaign.location:
         try:
             if isinstance(campaign.location, str):
@@ -171,7 +329,10 @@ def aisensy_prepare_message_data(
             elif isinstance(campaign.location, dict):
                 message_data["location"] = campaign.location
         except (json.JSONDecodeError, TypeError):
-            frappe.log_error("Invalid location format in campaign", campaign.location)
+            frappe.log_error(
+                title="Invalid location format in campaign",
+                message=f"Campaign: {campaign}, Location: {campaign.location}"
+            )
 
     if getattr(notification_doc, "attach_print", False) and getattr(
         notification_doc, "print_format", None
@@ -199,20 +360,23 @@ def aisensy_prepare_message_data(
 
             message_data["media"] = {"url": full_url, "filename": filename}
         except Exception as e:
-            frappe.log_error("Failed to attach print PDF", str(e))
+            frappe.log_error(title="Failed to attach print PDF", message=str(e))
+    
     return message_data
+
+def sanitize_param_text(text):
+    if not text:
+        return ""
+    text = re.sub(r'[\n\t]', ' ', str(text))
+    text = re.sub(r' {5,}', ' ', text)
+    return text.strip()
 
 
 def aisensy_make_api_call(message_data):
     """Make API call to Aisensy"""
     import requests
 
-    headers = {
-        "Content-Type": "application/json"
-        # Note: No Authorization header needed as apiKey is in the body
-    }
-
-    # Aisensy API endpoint
+    headers = {"Content-Type": "application/json"}
     api_url = "https://backend.aisensy.com/campaign/t1/api/v2"
 
     response = requests.post(api_url, headers=headers, json=message_data, timeout=30)
@@ -241,7 +405,6 @@ def aisensy_get_active_setting():
     """Get the first active Aisensy setting"""
     enabled_settings = aisensy_get_enabled_settings()
     if enabled_settings:
-        # Return the first enabled setting, or you can add logic to select specific one
         return frappe.get_doc("Aisensy Settings", enabled_settings[0].name)
     return None
 
@@ -261,7 +424,6 @@ def aisensy_log_message(campaign_name, numbers, triggered_from, response):
         if isinstance(response, dict) and response.get("error"):
             response_status = f"Error: {response.get('error')}"
 
-        # Create log entry
         log_doc = frappe.get_doc(
             {
                 "doctype": "Aisensy Message Logs",
