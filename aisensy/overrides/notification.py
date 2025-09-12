@@ -96,10 +96,6 @@ def get_phone_from_customer_address(doc, address_field):
         address_name = doc.get(address_field)
         
         if not address_name:
-            frappe.log_error(
-                title="Address field not found",
-                message=f"Field '{address_field}' not found in document {doc.doctype}/{doc.name}"
-            )
             return phone_numbers
         
         address_doc = frappe.get_doc("Address", address_name)
@@ -112,14 +108,6 @@ def get_phone_from_customer_address(doc, address_field):
                 cleaned_phone = clean_phone_number(phone_value)
                 if cleaned_phone:
                     phone_numbers.append(cleaned_phone)
-        
-        if phone_numbers:
-            frappe.logger().info(f"Found phone numbers from {address_field}: {phone_numbers}")
-        else:
-            frappe.log_error(
-                title="No phone numbers found in address",
-                message=f"Address: {address_name}, Document: {doc.doctype}/{doc.name}"
-            )
             
     except frappe.DoesNotExistError:
         frappe.log_error(
@@ -234,7 +222,6 @@ def aisensy_send_message(notification_doc, doc, whatsapp_numbers, campaign):
 
     except Exception as e:
         frappe.log_error(title="Aisensy API Error", message=str(e))
-        frappe.throw(_("Failed to send WhatsApp message: {0}").format(str(e)))
 
 
 def aisensy_prepare_message_data(
